@@ -1,0 +1,15 @@
+# ignore OS meta folders
+__MACOSX/
+
+# ignore virtual environments
+venv/
+
+# ignore Python cache and compiled files
+__pycache__/
+*.py[cod]
+
+# ignore dependency files
+node_modules/
+
+# ignore logs
+*.log
