@@ -1,6 +1,7 @@
 from flask import Flask, render_template
 
 app = Flask(__name__)
+app.config["DATABASE"] = "spendly.db"
 
 
 # ------------------------------------------------------------------ #
@@ -58,6 +59,12 @@ def edit_expense(id):
 def delete_expense(id):
     return "Delete expense — coming in Step 9"
 
+@app.cli.command("init-db")
+def init_db_command():
+    """Create the database tables."""
+    from database.db import init_db
+    init_db()
+    print("Initialized the database!")
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)

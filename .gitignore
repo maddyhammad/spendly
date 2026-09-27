@@ -23,3 +23,12 @@ node_modules/
 
 # Claude plans
 .claude/plans/
+
+database.db
+spendly.db
+
+database.db
+spendly.db
+
+.claude/
+file.txt
