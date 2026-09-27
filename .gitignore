@@ -1,0 +1,34 @@
+# Virtual environments
+venv/
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+
+# Environment files
+.env
+
+# Database
+expense_tracker.db
+
+# OS metadata
+.DS_Store
+__MACOSX/
+
+# Node dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Claude plans
+.claude/plans/
+
+database.db
+spendly.db
+
+database.db
+spendly.db
+
+.claude/
+file.txt
