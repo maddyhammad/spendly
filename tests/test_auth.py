@@ -1,7 +1,7 @@
 import pytest
 from werkzeug.security import check_password_hash
 
-from database.db import get_db
+from database.db import get_db, seed_db
 
 PASSWORD = "correct-horse"
 
@@ -144,20 +144,32 @@ def test_login_requires_both_fields(client, email, password):
     assert session_user_id(client) is None
 
 
-def test_login_user_without_password_hash_is_rejected(app, client):
-    # Mirrors the seed user that existed before the password_hash migration.
+@pytest.mark.parametrize("password", ["anything-at-all", "!"])
+def test_login_user_with_unusable_password_is_rejected(app, client, password):
+    # Mirrors John Doe, who was migrated with the "!" marker instead of a hash.
     with app.app_context():
         db = get_db()
         db.execute(
-            "INSERT INTO users (name, email) VALUES (?, ?)",
-            ("John Doe", "john@example.com"),
+            "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+            ("John Doe", "john@example.com", "!"),
         )
         db.commit()
 
-    response = login(client, email="john@example.com", password="anything-at-all")
+    response = login(client, email="john@example.com", password=password)
 
     assert response.status_code == 401
     assert session_user_id(client) is None
+
+
+def test_seeded_demo_user_can_log_in(app, client):
+    with app.app_context():
+        seed_db()
+
+    response = login(client, email="demo@spendly.com", password="demo123")
+
+    assert response.status_code == 302
+    assert session_user_id(client) is not None
+    assert "Hi, Demo User" in client.get("/").get_data(as_text=True)
 
 
 def test_login_replaces_existing_session_data(client):

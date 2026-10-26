@@ -11,6 +11,7 @@ from database.db import (
     get_user_by_email,
     get_user_by_id,
     init_db,
+    seed_db,
 )
 
 app = Flask(__name__)
@@ -104,7 +105,8 @@ def login():
         return render_template("login.html", error=error, email=email), 400
 
     user = get_user_by_email(email)
-    # Users created before auth existed have no password_hash and can't log in.
+    # Accounts with the unusable-password marker ("!") or a legacy NULL can't log in;
+    # the explicit check matters because check_password_hash(None, ...) raises.
     if (
         user is None
         or not user["password_hash"]
@@ -162,4 +164,8 @@ def init_db_command():
     print("Initialized the database!")
 
 if __name__ == "__main__":
+    # Only when run directly: importing app (e.g. from tests) must never touch spendly.db.
+    with app.app_context():
+        init_db()
+        seed_db()
     app.run(debug=True, port=5001)
