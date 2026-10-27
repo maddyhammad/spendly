@@ -136,10 +136,15 @@ def login():
     return redirect(url_for("landing"))
 
 
-@app.route("/logout")
+@app.route("/logout", methods=["POST"])
 def logout():
-    session.clear()
-    return redirect(url_for("landing"))
+    # POST-only, and a no-op without a user_id: SameSite=Lax keeps the cookie off another
+    # site's POST, and skipping clear() means no delete-cookie header is sent back to it.
+    if "user_id" in session:
+        session.clear()
+        # After clear(), or the clear would wipe the message. login.html shows it once.
+        flash("You've been signed out.", "success")
+    return redirect(url_for("login"))
 
 
 @app.route("/terms")
