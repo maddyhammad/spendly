@@ -21,15 +21,37 @@ node_modules/
 # Logs
 *.log
 
-# Claude plans
-.claude/plans/
-
 database.db
 spendly.db
 
 database.db
 spendly.db
 
+# SQLite databases, temp files and backups (may contain user data)
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+*.bak
+*.backup
+*.orig
+
+# Editor / temp files
+*.tmp
+*.swp
+*~
+
+# Secrets
+.env.*
+!.env.example
+
+# Claude Code: share slash commands, specs and plans only. Everything else
+# under .claude/ (settings.local.json, launch.json, ...) is local config.
 .claude/*
 !.claude/commands/
+!.claude/specs/
+!.claude/plans/
+CLAUDE.local.md
 file.txt

@@ -1,8 +1,9 @@
 import os
 import re
 import secrets
+import unicodedata
 
-from flask import Flask, g, redirect, render_template, request, session, url_for
+from flask import Flask, flash, g, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import (
@@ -27,6 +28,7 @@ app.teardown_appcontext(close_db)
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MIN_PASSWORD_LENGTH = 8
+MAX_PASSWORD_LENGTH = 128
 
 
 # ------------------------------------------------------------------ #
@@ -51,10 +53,20 @@ def validate_registration(name, email, password):
         return "All fields are required."
     if len(name) > 100:
         return "Name must be 100 characters or fewer."
+    # "Cc" covers NUL, newlines, tabs and DEL; "Zl"/"Zp" are the Unicode line and
+    # paragraph separators. Format chars ("Cf") such as zero-width joiners are left
+    # alone because some scripts need them.
+    if any(unicodedata.category(char) in ("Cc", "Zl", "Zp") for char in name):
+        return "Name contains invalid characters."
     if len(email) > 254 or not EMAIL_PATTERN.match(email):
         return "Please enter a valid email address."
     if len(password) < MIN_PASSWORD_LENGTH:
         return f"Password must be at least {MIN_PASSWORD_LENGTH} characters."
+    if len(password) > MAX_PASSWORD_LENGTH:
+        return f"Password must be {MAX_PASSWORD_LENGTH} characters or fewer."
+    # Checked as-is: passwords are never stripped, so inner/edge spaces are kept.
+    if password.isspace():
+        return "Password cannot be only spaces."
     return None
 
 
@@ -87,8 +99,13 @@ def register():
         error = "An account with that email already exists."
         return render_template("register.html", error=error, name=name, email=email), 409
 
-    start_session(user_id)
-    return redirect(url_for("landing"))
+    # No auto-login: the new user signs in themselves. login.html shows this message once.
+    flash(
+        "Welcome to Spendly! 🎉 Your account has been created successfully. "
+        "Please sign in to continue.",
+        "success",
+    )
+    return redirect(url_for("login"))
 
 
 @app.route("/login", methods=["GET", "POST"])
