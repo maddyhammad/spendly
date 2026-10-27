@@ -1,4 +1,7 @@
+import re
+
 import pytest
+from markupsafe import escape
 from werkzeug.security import check_password_hash
 
 from database.db import get_db, seed_db
@@ -8,6 +11,8 @@ WELCOME_MESSAGE = (
     "Welcome to Spendly! 🎉 Your account has been created successfully. "
     "Please sign in to continue."
 )
+# Jinja escapes the apostrophe, so this is how the sign-out message appears in the HTML.
+SIGNED_OUT_HTML = str(escape("You've been signed out."))
 
 
 def register(client, name="Asha Rao", email="asha@example.com", password=PASSWORD):
@@ -18,6 +23,10 @@ def register(client, name="Asha Rao", email="asha@example.com", password=PASSWOR
 
 def login(client, email="asha@example.com", password=PASSWORD):
     return client.post("/login", data={"email": email, "password": password})
+
+
+def logout(client):
+    return client.post("/logout")
 
 
 def sign_up_and_log_in(client):
@@ -231,6 +240,28 @@ def test_login_with_valid_credentials(client):
     assert "Sign out" in landing
 
 
+def test_login_accepts_padded_mixed_case_email(client):
+    register(client)
+
+    response = login(client, email="  Asha@Example.COM ")
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/"
+    assert session_user_id(client) is not None
+
+
+def test_login_password_must_match_exactly(client):
+    password = "  pass word  "
+    register(client, password=password)
+
+    for typed in ("pass word", "  pass word", "pass word  "):
+        assert login(client, password=typed).status_code == 401
+        assert session_user_id(client) is None
+
+    assert login(client, password=password).status_code == 302
+    assert session_user_id(client) is not None
+
+
 @pytest.mark.parametrize(
     "email, password",
     [("asha@example.com", "wrong-password"), ("nobody@example.com", PASSWORD)],
@@ -246,8 +277,26 @@ def test_login_rejects_invalid_credentials(client, email, password):
 
 
 @pytest.mark.parametrize(
+    "password, status",
+    [("wrong-password", 401), ("", 400)],
+    ids=["wrong-password", "empty-password"],
+)
+def test_login_error_keeps_email_but_not_password(client, password, status):
+    register(client)
+
+    response = login(client, email="  Asha@Example.com ", password=password)
+
+    assert response.status_code == status
+    html = response.get_data(as_text=True)
+    assert 'value="asha@example.com"' in html  # re-filled, normalised
+    [password_input] = re.findall(r'<input type="password"[^>]*>', html)
+    assert "value=" not in password_input  # the password field is never re-filled
+    assert "wrong-password" not in html
+
+
+@pytest.mark.parametrize(
     "email, password",
-    [("", ""), ("asha@example.com", ""), ("", PASSWORD)],
+    [("", ""), ("asha@example.com", ""), ("", PASSWORD), ("   ", PASSWORD)],
 )
 def test_login_requires_both_fields(client, email, password):
     response = login(client, email=email, password=password)
@@ -296,21 +345,111 @@ def test_login_replaces_existing_session_data(client):
         assert sess.get("user_id") is not None
 
 
+def test_login_session_contains_only_user_id(app, client):
+    register(client)  # leaves the welcome flash pending in the session
+
+    login(client)
+
+    [user] = fetch_users(app)
+    with client.session_transaction() as sess:
+        assert dict(sess) == {"user_id": user["id"]}
+
+
+def test_login_post_when_logged_in_redirects_without_checking(client):
+    sign_up_and_log_in(client)
+    user_id = session_user_id(client)
+
+    response = login(client, password="wrong-password")
+
+    assert response.status_code == 302  # not 401: the password was never checked
+    assert response.headers["Location"] == "/"
+    assert session_user_id(client) == user_id
+
+
+def test_login_form_has_autocomplete_and_error_alert(client):
+    form = client.get("/login").get_data(as_text=True)
+    assert 'autocomplete="email"' in form
+    assert 'autocomplete="current-password"' in form
+    assert 'maxlength="254"' in form
+    assert 'maxlength="128"' not in form  # no password cap at login (spec §12)
+
+    error_page = login(client, password="wrong-password").get_data(as_text=True)
+    assert 'role="alert"' in error_page
+
+
 def test_logout_clears_session(client):
     sign_up_and_log_in(client)
     assert session_user_id(client) is not None
     with client.session_transaction() as sess:
         sess["planted"] = "value"
 
-    response = client.get("/logout")
+    response = logout(client)
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/"
+    assert response.headers["Location"] == "/login"
     with client.session_transaction() as sess:
-        assert dict(sess) == {}
+        assert list(sess) == ["_flashes"]  # only the sign-out message, until it's shown
     landing = client.get("/").get_data(as_text=True)
     assert "Sign in" in landing
     assert "Sign out" not in landing
+
+
+def test_logout_shows_signed_out_message_once(client):
+    sign_up_and_log_in(client)
+
+    response = logout(client)
+    assert response.headers["Location"] == "/login"
+
+    page = client.get("/login").get_data(as_text=True)
+    assert page.count(SIGNED_OUT_HTML) == 1
+    assert page.count('class="auth-success" role="status"') == 1
+    assert "Sign out" not in page
+
+    refreshed = client.get("/login").get_data(as_text=True)
+    assert SIGNED_OUT_HTML not in refreshed
+    assert 'class="auth-success"' not in refreshed
+
+
+def test_logout_rejects_get(client):
+    sign_up_and_log_in(client)
+    user_id = session_user_id(client)
+
+    response = client.get("/logout")
+
+    assert response.status_code == 405
+    assert session_user_id(client) == user_id
+
+
+def test_logout_when_logged_out_is_harmless(client):
+    register(client)  # logged out, with the welcome flash waiting in the session
+
+    response = logout(client)
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/login"
+    page = client.get("/login").get_data(as_text=True)
+    assert WELCOME_MESSAGE in page  # the session was left alone
+    assert SIGNED_OUT_HTML not in page
+
+
+def test_logout_without_session_cookie_sets_no_cookie(client):
+    # Models another site's form POSTing here: SameSite=Lax keeps the session cookie off
+    # cross-site POSTs, so the request has no session. A Set-Cookie in the response would
+    # still delete the user's real cookie, so there must be none.
+    response = logout(client)
+
+    assert response.status_code == 302
+    assert "Set-Cookie" not in response.headers
+
+
+def test_nav_sign_out_is_a_post_form(client):
+    sign_up_and_log_in(client)
+
+    page = client.get("/").get_data(as_text=True)
+
+    assert '<form method="POST" action="/logout" class="nav-logout">' in page
+    assert '<button type="submit" class="nav-cta">Sign out</button>' in page
+    assert 'href="/logout"' not in page
 
 
 def test_session_for_deleted_user_is_treated_as_logged_out(app, client):
@@ -325,6 +464,8 @@ def test_session_for_deleted_user_is_treated_as_logged_out(app, client):
 
     assert "Sign in" in landing
     assert client.get("/login").status_code == 200
+    logout(client)  # a stale id still counts as a session to end
+    assert session_user_id(client) is None
 
 
 @pytest.mark.parametrize("path", ["/login", "/register"])

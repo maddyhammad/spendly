@@ -114,6 +114,10 @@ a { color: inherit; text-decoration: none; }
 
 .nav-cta:hover { background: var(--accent) !important; }
 
+/* Sign out is a POST form; display: contents keeps its button in the nav's flex row. */
+.nav-logout { display: contents; }
+button.nav-cta { border: 0; font: inherit; cursor: pointer; }
+
 /* ------------------------------------------------------------------ */
 /* Main                                                                */
 /* ------------------------------------------------------------------ */

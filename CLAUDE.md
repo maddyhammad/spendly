@@ -148,7 +148,8 @@ pytest -s
 
 - Passwords are hashed with Werkzeug `generate_password_hash()` (scrypt) and checked with
   `check_password_hash()`. Never store or log plain-text passwords.
-- **Spec / plan:** `.claude/specs/02-registration.md`, `.claude/plans/02-registration.md`.
+- **Spec / plan:** `.claude/specs/02-registration.md`, `.claude/plans/02-registration.md`;
+  login/logout: `.claude/specs/03-login-and-logout.md`, `.claude/plans/03-login-and-logout.md`.
 - Emails are normalised (`strip().lower()`) on both register and login. `users.email` is
   `UNIQUE` but case-sensitive (`BINARY` collation) — case-insensitive uniqueness is **not**
   enforced by the database, only by this normalisation, so anything else that inserts users
@@ -168,6 +169,14 @@ pytest -s
   `get_flashed_messages()` removes the message, so it is gone on refresh. Flashes are rendered
   only in `login.html`, not in `base.html` — a template that also rendered them would show each
   message twice on the login page, because Flask returns the same messages for every call in one request.
+- **Logout is POST-only.** The nav's Sign out is a `<form class="nav-logout">` with a
+  `button.nav-cta` (`display: contents` keeps it in the nav's flex row); `GET /logout` → 405.
+  `logout()` acts only when the session holds a `user_id`: it clears the session, *then* flashes
+  "You've been signed out." (flashing first would be wiped by the clear) and redirects to `/login`,
+  which renders the message. Without a `user_id` it redirects without touching the session —
+  `session.clear()` on an empty session still sends a delete-cookie header. Together with
+  `SameSite=Lax` (no cookie on another site's POST) this stops other sites from signing users
+  out. Don't turn logout back into a GET link or drop the `user_id` check.
 - Logged-in users hitting `/login` or `/register` are redirected to `/`. After login the user is
   sent to `/` — change this to the profile page once Step 4 exists.
 - Accounts that must not log in store the marker `"!"` (`UNUSABLE_PASSWORD` in `db.py`) in
@@ -177,7 +186,9 @@ pytest -s
 - `SECRET_KEY` comes from the `SECRET_KEY` environment variable. Without it a random key is
   generated per process, so everyone is logged out whenever the dev server restarts or reloads.
 - Session cookie: `HttpOnly` (Flask default) and `SameSite=Lax`. There are no CSRF tokens
-  yet — add them before building the expense forms (Steps 7–9).
+  yet — add them before building the expense forms (Steps 7–9). A per-session token will change
+  the "session stores only `user_id` + `_flashes`" rule above, and every POST helper in
+  `tests/test_auth.py` (`register`, `login`, `logout`) will need to send it.
 
 ---
 
@@ -188,7 +199,7 @@ pytest -s
 | `GET /` | Implemented — renders `landing.html` |
 | `GET, POST /register` | Implemented — validates, creates user, flashes a welcome message, redirects to `/login` (no auto-login) |
 | `GET, POST /login` | Implemented — checks password hash, redirects to `/` |
-| `GET /logout` | Implemented (Step 3) — clears the session, redirects to `/` |
+| `POST /logout` | Implemented (Step 3) — POST only (GET → 405); clears the session only when it holds a `user_id`, flashes "You've been signed out.", redirects to `/login` |
 | `GET /terms` | Implemented — renders `terms.html` |
 | `GET /privacy` | Implemented — renders `privacy.html` |
 | `GET /profile` | Stub — Step 4 |
