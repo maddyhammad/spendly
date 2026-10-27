@@ -30,5 +30,6 @@ spendly.db
 database.db
 spendly.db
 
-.claude/
+.claude/*
+!.claude/commands/
 file.txt
