@@ -13,6 +13,13 @@
         </div>
 
         <div class="auth-card">
+            {% for message in get_flashed_messages(category_filter=["success"]) %}
+            <div class="auth-success" role="status">
+                <span class="auth-success-icon" aria-hidden="true">✓</span>
+                <p class="auth-success-text">{{ message }}</p>
+            </div>
+            {% endfor %}
+
             {% if error %}
             <div class="auth-error">{{ error }}</div>
             {% endif %}

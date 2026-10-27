@@ -159,6 +159,24 @@ def test_duplicate_email_violates_unique(app):
             )
 
 
+def test_create_user_returns_none_for_duplicate_email(app):
+    with app.app_context():
+        first = create_user("A", "same@example.com", "hash")
+        second = create_user("B", "same@example.com", "hash")
+        count = get_db().execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    assert first is not None
+    assert second is None
+    assert count == 1
+
+
+def test_email_unique_is_case_sensitive_at_db_level(app):
+    # Case-insensitive uniqueness comes from /register lowercasing emails, not from
+    # the schema. If this starts failing, update CLAUDE.md and the Step 2 spec.
+    with app.app_context():
+        assert create_user("A", "same@example.com", "hash") is not None
+        assert create_user("B", "SAME@example.com", "hash") is not None
+
+
 def test_foreign_keys_are_enforced(app):
     with app.app_context():
         db = get_db()

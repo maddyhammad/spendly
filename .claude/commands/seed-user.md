@@ -5,6 +5,7 @@ argument-hint: [name] [email]
 Create a development user in `spendly.db` using the helpers in `database/db.py`.
 
 - Name and email come from: $ARGUMENTS. If none are given, make up a realistic name and an @spendly.com email.
+- Normalise the email with `strip().lower()` before checking for it or inserting it, exactly as `/register` does. `users.email` is case-sensitive in the database, so skipping this could create a case-variant duplicate account.
 - Password: `password123`, hashed with `generate_password_hash`.
 - Add 8 expenses for that user dated this month (none after today), with one expense in each category.
 - Use parameterized queries only, and don't modify the demo user.

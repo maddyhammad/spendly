@@ -148,14 +148,28 @@ pytest -s
 
 - Passwords are hashed with Werkzeug `generate_password_hash()` (scrypt) and checked with
   `check_password_hash()`. Never store or log plain-text passwords.
-- Emails are normalised (`strip().lower()`) on both register and login.
-- Validation (server-side, `validate_registration()` in `app.py`): name 1–100 chars,
-  email matches `EMAIL_PATTERN` and ≤ 254 chars, password ≥ `MIN_PASSWORD_LENGTH` (8).
-- The session stores only `user_id`. `start_session()` clears the session before setting
-  it (prevents session fixation). A `before_request` hook loads `g.user` (or `None`);
+- **Spec / plan:** `.claude/specs/02-registration.md`, `.claude/plans/02-registration.md`.
+- Emails are normalised (`strip().lower()`) on both register and login. `users.email` is
+  `UNIQUE` but case-sensitive (`BINARY` collation) — case-insensitive uniqueness is **not**
+  enforced by the database, only by this normalisation, so anything else that inserts users
+  (seed commands, scripts) must lowercase too. Don't add `COLLATE NOCASE` without a planned rebuild.
+- Validation (server-side, `validate_registration()` in `app.py`, registration only — login
+  doesn't re-validate): name 1–100 chars with no control characters (Unicode `Cc`) or
+  line/paragraph separators (`Zl`/`Zp`),
+  email matches `EMAIL_PATTERN` and ≤ 254 chars, password `MIN_PASSWORD_LENGTH` (8) to
+  `MAX_PASSWORD_LENGTH` (128) chars and not whitespace-only. Passwords are never stripped.
+- The session stores only `user_id`, plus Flask's one-time `_flashes` list until the flash is
+  shown. Only `login()` calls `start_session()`, which clears the session before setting `user_id`
+  (prevents session fixation). A `before_request` hook loads `g.user` (or `None`);
   templates check `g.user` — `base.html` uses it to switch the nav.
-- Logged-in users hitting `/login` or `/register` are redirected to `/`. After register or
-  login the user is sent to `/` — change this to the profile page once Step 4 exists.
+- **Registration does not log the user in.** On success `register()` calls
+  `flash("Welcome to Spendly! 🎉 …Please sign in to continue.", "success")` and redirects to `/login`.
+  `login.html` renders success flashes above the form (`.auth-success` in `style.css`).
+  `get_flashed_messages()` removes the message, so it is gone on refresh. Flashes are rendered
+  only in `login.html`, not in `base.html` — a template that also rendered them would show each
+  message twice on the login page, because Flask returns the same messages for every call in one request.
+- Logged-in users hitting `/login` or `/register` are redirected to `/`. After login the user is
+  sent to `/` — change this to the profile page once Step 4 exists.
 - Accounts that must not log in store the marker `"!"` (`UNUSABLE_PASSWORD` in `db.py`) in
   `password_hash` — it never matches a password. John Doe (id 1, from the old seed) has it.
 - **Demo login:** `demo@spendly.com` / `demo123` (created by `seed_db()`). It is shorter than
@@ -172,7 +186,7 @@ pytest -s
 | Route | Status |
 |---|---|
 | `GET /` | Implemented — renders `landing.html` |
-| `GET, POST /register` | Implemented — validates, creates user, logs in, redirects to `/` |
+| `GET, POST /register` | Implemented — validates, creates user, flashes a welcome message, redirects to `/login` (no auto-login) |
 | `GET, POST /login` | Implemented — checks password hash, redirects to `/` |
 | `GET /logout` | Implemented (Step 3) — clears the session, redirects to `/` |
 | `GET /terms` | Implemented — renders `terms.html` |
@@ -199,4 +213,6 @@ pytest -s
   `PRAGMA foreign_keys = ON` on every connection, so always go through `get_db()`
 - **Never commit a venv or nested project copies** — a `Downloads/` duplicate (plus a venv)
   was once pulled in from a stray Git repo in the home folder and had to be removed
+- **`.claude/` is gitignored except `commands/`, `specs/` and `plans/`** — never commit
+  `settings.local.json`, `launch.json` or other local Claude config
 - The app runs on **port 5001**, not the Flask default 5000 — don't change this
