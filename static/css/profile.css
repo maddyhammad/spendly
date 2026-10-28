@@ -1,0 +1,460 @@
+/* ================================================================== */
+/* Profile page — loaded only by profile.html, on top of style.css     */
+/* ================================================================== */
+
+.profile-page {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 2.5rem 2rem 4rem;
+    display: grid;
+    gap: 1.5rem;
+}
+
+/* minmax(0, …) lets the table shrink inside its column instead of overflowing it. */
+.profile-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: 1.5rem;
+    align-items: start;
+}
+
+/* ------------------------------------------------------------------ */
+/* Cards                                                               */
+/* ------------------------------------------------------------------ */
+
+.profile-card {
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.75rem;
+    box-shadow: 0 1px 2px rgba(15, 15, 15, 0.04), 0 4px 16px rgba(15, 15, 15, 0.03);
+    transition: box-shadow 0.25s;
+}
+
+.card-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.card-title {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 400;
+    line-height: 1.3;
+}
+
+.card-subtitle,
+.empty-note {
+    font-size: 0.875rem;
+    color: var(--ink-muted);
+}
+
+.empty-note { padding: 1.5rem 0; text-align: center; }
+
+/* ------------------------------------------------------------------ */
+/* Account hero                                                        */
+/* ------------------------------------------------------------------ */
+
+/* Deep-green banner, lit by two soft pale-green glows (accent-light at low opacity). */
+.account-card {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2.25rem 2rem;
+    border: 0;
+    color: var(--paper-card);
+    background:
+        radial-gradient(circle at 88% 10%, rgba(232, 240, 235, 0.16), transparent 40%),
+        radial-gradient(circle at 70% 130%, rgba(232, 240, 235, 0.12), transparent 50%),
+        var(--accent);
+    box-shadow: 0 12px 32px rgba(26, 71, 42, 0.22);
+}
+
+/* Two thin decorative rings, echoing the landing hero's circles. */
+.account-card::before,
+.account-card::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    pointer-events: none;
+}
+
+.account-card::before { width: 320px; height: 320px; top: -170px; right: -60px; }
+.account-card::after  { width: 200px; height: 200px; top: -90px;  right: 70px; }
+
+.profile-avatar {
+    position: relative;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 5rem;
+    height: 5rem;
+    border-radius: 50%;
+    background: var(--paper-card);
+    color: var(--accent);
+    font-family: var(--font-display);
+    font-size: 2.25rem;
+    line-height: 1;
+    box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.16);
+}
+
+.account-details { position: relative; min-width: 0; }
+
+.profile-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+/* overflow-wrap: anywhere — a 100-character name or a long email must wrap, not scroll. */
+.profile-name {
+    font-family: var(--font-display);
+    font-size: clamp(1.9rem, 3.5vw, 2.6rem);
+    font-weight: 400;
+    line-height: 1.15;
+    margin: 0.15rem 0 0.25rem;
+    overflow-wrap: anywhere;
+}
+
+.profile-email {
+    color: rgba(255, 255, 255, 0.82);
+    overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------------ */
+/* Sample-data badge and note                                          */
+/* ------------------------------------------------------------------ */
+
+/* Ink text, not amber: amber on its light tint is only ~3:1, below WCAG AA. */
+.sample-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--accent-2-light);
+    border: 1px solid #f0dcb8;
+    color: var(--ink-soft);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+}
+
+.sample-badge::before {
+    content: "";
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: var(--accent-2);
+}
+
+.sample-note {
+    font-size: 0.85rem;
+    color: var(--ink-muted);
+    padding: 0.65rem 0.9rem;
+    background: var(--paper);
+    border-left: 3px solid var(--accent-2);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Summary tiles                                                       */
+/* ------------------------------------------------------------------ */
+
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1.25rem;
+}
+
+.stat-tile {
+    background: var(--paper);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    transition: border-color 0.25s, transform 0.25s;
+}
+
+/* The headline number gets the brand tint. */
+.stat-tile--featured {
+    background: var(--accent-light);
+    border-color: #d3e3d8;
+}
+
+.stat-tile--featured .stat-value { color: var(--accent); }
+.stat-tile--featured .stat-icon { background: var(--paper-card); }
+
+.stat-label {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--ink-muted);
+}
+
+.stat-icon {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--radius-sm);
+    background: var(--accent-light);
+    color: var(--accent);
+}
+
+/* Figures in the body sans; the display serif is kept for headings. */
+.stat-value {
+    font-size: clamp(1.5rem, 2.5vw, 1.9rem);
+    font-weight: 600;
+    line-height: 1.3;
+    margin-top: 0.2rem;
+    overflow-wrap: anywhere;
+}
+
+.stat-note {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+}
+
+.stat-meta {
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+    margin-top: 0.15rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* Category icon chip (shared by both lists)                           */
+/* ------------------------------------------------------------------ */
+
+.category-icon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--radius-sm);
+    background: var(--accent-light);
+    color: var(--accent);
+}
+
+/* ------------------------------------------------------------------ */
+/* By category                                                         */
+/* ------------------------------------------------------------------ */
+
+.category-list {
+    list-style: none;
+    display: grid;
+    gap: 0.35rem;
+}
+
+/* Icon on the left; name, amount and share on one line; a full-width bar underneath. */
+.category-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+        "icon name amount share"
+        "icon bar  bar    bar";
+    align-items: center;
+    column-gap: 0.75rem;
+    row-gap: 0.45rem;
+    padding: 0.6rem;
+    margin: 0 -0.6rem;
+    border-radius: var(--radius-md);
+    transition: background 0.2s;
+}
+
+.category-row .category-icon { grid-area: icon; }
+.category-name { grid-area: name; font-weight: 500; }
+
+.category-amount {
+    grid-area: amount;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+.category-share {
+    grid-area: share;
+    min-width: 2.75rem;
+    text-align: right;
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.category-track {
+    grid-area: bar;
+    display: block;
+    height: 8px;
+    background: var(--accent-light);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+/* Width = share of the total; rounded only at the data end. Grows in on load. */
+.category-bar {
+    display: block;
+    height: 100%;
+    width: var(--share, 0%);
+    background: var(--accent);
+    border-radius: 0 4px 4px 0;
+    animation: bar-grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s both;
+}
+
+@keyframes bar-grow { from { width: 0; } }
+
+/* ------------------------------------------------------------------ */
+/* Recent expenses                                                     */
+/* ------------------------------------------------------------------ */
+
+.expense-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.expense-table th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: left;
+    color: var(--ink-muted);
+    padding: 0 0.75rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.expense-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: middle;
+}
+
+.expense-table tbody tr { transition: background 0.2s; }
+.expense-table tbody tr:last-child td { border-bottom: 0; }
+
+.expense-table .num {
+    text-align: right;
+    white-space: nowrap;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.col-date {
+    white-space: nowrap;
+    color: var(--ink-muted);
+}
+
+.expense-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.expense-text { min-width: 0; }
+
+.expense-desc {
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.category-pill {
+    display: inline-block;
+    background: var(--accent-light);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+}
+
+/* Shown only on phones, where it replaces the Date and Category columns. */
+.expense-meta { display: none; }
+
+/* ------------------------------------------------------------------ */
+/* Entrance and hover — subtle, and only where they make sense         */
+/* ------------------------------------------------------------------ */
+
+.profile-page > * { animation: rise-in 0.5s ease-out both; }
+.profile-page > :nth-child(2) { animation-delay: 0.06s; }
+.profile-page > :nth-child(3) { animation-delay: 0.12s; }
+
+@keyframes rise-in {
+    from { opacity: 0; transform: translateY(8px); }
+}
+
+/* Only on devices that can hover, so taps on touch screens don't leave a stuck state. */
+@media (hover: hover) {
+    .profile-card:not(.account-card):hover {
+        box-shadow: 0 2px 4px rgba(15, 15, 15, 0.04), 0 12px 32px rgba(15, 15, 15, 0.07);
+    }
+    .stat-tile:hover { border-color: var(--border); transform: translateY(-2px); }
+    .category-row:hover,
+    .expense-table tbody tr:hover { background: var(--paper); }
+}
+
+/* ------------------------------------------------------------------ */
+/* Responsive                                                          */
+/* ------------------------------------------------------------------ */
+
+@media (max-width: 900px) {
+    .profile-columns { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 600px) {
+    .profile-page { padding: 1.5rem 1rem 3rem; gap: 1rem; }
+
+    .profile-card { padding: 1.25rem; border-radius: var(--radius-md); }
+
+    .account-card { padding: 1.5rem 1.25rem; gap: 1rem; }
+    .profile-avatar { width: 3.75rem; height: 3.75rem; font-size: 1.75rem; }
+
+    .stat-grid { grid-template-columns: minmax(0, 1fr); }
+    .stat-tile { padding: 1rem 1.1rem; }
+    .stat-label { flex-direction: row; align-items: center; }  /* icon beside the label */
+
+    /* Two columns (Description | Amount); the pill and date move under the description. */
+    .expense-table .col-date,
+    .expense-table .col-category { display: none; }
+
+    .expense-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem 0.5rem;
+        margin-top: 0.3rem;
+        font-size: 0.8rem;
+        color: var(--ink-muted);
+    }
+}
+
+/* Very narrow phones: the pill already names the category, so drop the row icon for room. */
+@media (max-width: 400px) {
+    .expense-item .category-icon { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .profile-page > *,
+    .category-bar { animation: none; }
+
+    .profile-card,
+    .stat-tile,
+    .category-row,
+    .expense-table tbody tr { transition: none; }
+
+    .stat-tile:hover { transform: none; }
+}

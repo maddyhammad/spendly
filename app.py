@@ -1,7 +1,9 @@
+import functools
 import os
 import re
 import secrets
 import unicodedata
+from datetime import date
 
 from flask import Flask, flash, g, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -14,6 +16,7 @@ from database.db import (
     init_db,
     seed_db,
 )
+from sample_data import get_profile_sample
 
 app = Flask(__name__)
 # Absolute path so the same file is used no matter which directory the app
@@ -47,6 +50,19 @@ def start_session(user_id):
     session["user_id"] = user_id
 
 
+def login_required(view):
+    # A redirect, not abort(401): sending someone to sign in is navigation, not an error.
+    # No flash (login.html only renders "success" ones), no `next`, and the session is
+    # left alone, so a deleted user's stale user_id simply counts as signed out.
+    @functools.wraps(view)  # keeps the endpoint name, so url_for("profile") still works
+    def wrapped_view(**kwargs):
+        if g.user is None:
+            return redirect(url_for("login"))
+        return view(**kwargs)
+
+    return wrapped_view
+
+
 def validate_registration(name, email, password):
     """Return an error message for invalid registration input, else None."""
     if not name or not email or not password:
@@ -71,6 +87,34 @@ def validate_registration(name, email, password):
 
 
 # ------------------------------------------------------------------ #
+# Template filters                                                    #
+# ------------------------------------------------------------------ #
+
+@app.template_filter("inr")
+def inr(value):
+    """Rupees with Indian digit grouping: 248500 -> "₹2,48,500.00", -1200 -> "−₹1,200.00"."""
+    text = f"{abs(value):.2f}"
+    rupees, paise = text.split(".")
+    if len(rupees) > 3:
+        # Last three digits, then pairs: 12345678 -> 1,23,45,678.
+        rupees = re.sub(r"(\d)(?=(\d{2})+$)", r"\1,", rupees[:-3]) + "," + rupees[-3:]
+    # U+2212 minus sign; an amount that rounds to zero never shows as "−₹0.00".
+    sign = "−" if value < 0 and text != "0.00" else ""
+    return f"{sign}₹{rupees}.{paise}"
+
+
+@app.template_filter("short_date")
+def short_date(value):
+    """ISO "2026-10-26" -> "26 Oct 2026"; anything else is returned unchanged."""
+    try:
+        parsed = date.fromisoformat(value)
+    except (TypeError, ValueError):
+        return value
+    # parsed.day, not %-d: Windows strftime has no flag to drop the leading zero.
+    return f"{parsed.day} {parsed:%b %Y}"
+
+
+# ------------------------------------------------------------------ #
 # Routes                                                              #
 # ------------------------------------------------------------------ #
 
@@ -82,7 +126,7 @@ def landing():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if g.user:
-        return redirect(url_for("landing"))
+        return redirect(url_for("profile"))
     if request.method == "GET":
         return render_template("register.html")
 
@@ -111,7 +155,7 @@ def register():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if g.user:
-        return redirect(url_for("landing"))
+        return redirect(url_for("profile"))
     if request.method == "GET":
         return render_template("login.html")
 
@@ -133,7 +177,7 @@ def login():
         return render_template("login.html", error=error, email=email), 401
 
     start_session(user["id"])
-    return redirect(url_for("landing"))
+    return redirect(url_for("profile"))
 
 
 @app.route("/logout", methods=["POST"])
@@ -156,14 +200,16 @@ def privacy():
     return render_template("privacy.html")
 
 
+@app.route("/profile")
+@login_required
+def profile():
+    # Step 4: every figure is sample data. Step 6 swaps this call for queries in database/db.py.
+    return render_template("profile.html", **get_profile_sample())
+
+
 # ------------------------------------------------------------------ #
 # Placeholder routes — students will implement these                  #
 # ------------------------------------------------------------------ #
-
-@app.route("/profile")
-def profile():
-    return "Profile page — coming in Step 4"
-
 
 @app.route("/expenses/add")
 def add_expense():
