@@ -183,7 +183,7 @@ def test_register_post_when_logged_in_redirects_without_creating_user(app, clien
     response = register(client, name="Someone Else", email="other@example.com")
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/"
+    assert response.headers["Location"] == "/profile"
     assert len(fetch_users(app)) == 1
     assert session_user_id(client) == user_id
 
@@ -233,11 +233,11 @@ def test_login_with_valid_credentials(client):
     response = login(client, email="ASHA@example.com")
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/"
+    assert response.headers["Location"] == "/profile"
     assert session_user_id(client) is not None
-    landing = client.get("/").get_data(as_text=True)
-    assert "Hi, Asha Rao" in landing
-    assert "Sign out" in landing
+    profile = client.get("/profile").get_data(as_text=True)
+    assert "Hi, Asha Rao" in profile
+    assert "Sign out" in profile
 
 
 def test_login_accepts_padded_mixed_case_email(client):
@@ -246,7 +246,7 @@ def test_login_accepts_padded_mixed_case_email(client):
     response = login(client, email="  Asha@Example.COM ")
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/"
+    assert response.headers["Location"] == "/profile"
     assert session_user_id(client) is not None
 
 
@@ -362,7 +362,7 @@ def test_login_post_when_logged_in_redirects_without_checking(client):
     response = login(client, password="wrong-password")
 
     assert response.status_code == 302  # not 401: the password was never checked
-    assert response.headers["Location"] == "/"
+    assert response.headers["Location"] == "/profile"
     assert session_user_id(client) == user_id
 
 
@@ -473,7 +473,7 @@ def test_logged_in_user_is_redirected_away_from_auth_pages(client, path):
     sign_up_and_log_in(client)
     response = client.get(path)
     assert response.status_code == 302
-    assert response.headers["Location"] == "/"
+    assert response.headers["Location"] == "/profile"
 
 
 def test_session_cookie_is_httponly_and_samesite_lax(client):

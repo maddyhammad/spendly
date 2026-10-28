@@ -22,7 +22,6 @@ def test_auth_forms_post_to_their_own_routes(client):
 @pytest.mark.parametrize(
     "path, step",
     [
-        ("/profile", "Step 4"),
         ("/expenses/add", "Step 7"),
         ("/expenses/1/edit", "Step 8"),
         ("/expenses/1/delete", "Step 9"),

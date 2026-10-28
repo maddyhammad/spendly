@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Profile — Spendly{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+{% endblock %}
+
+{% block content %}
+{# Small line icons, drawn inline so no icon library is needed. Decorative only (aria-hidden). #}
+{% macro icon(name) -%}
+<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+    {%- if name == "Food" %}<path d="M7 3v18"/><path d="M4 3v5a3 3 0 0 0 6 0V3"/><path d="M17 21V3c-2 0-3.5 2-3.5 5.5V13H17"/>
+    {%- elif name == "Transport" %}<rect x="4" y="3" width="16" height="14" rx="3"/><path d="M4 11h16"/><path d="M7 17v3"/><path d="M17 17v3"/><path d="M8 14h.01"/><path d="M16 14h.01"/>
+    {%- elif name == "Bills" %}<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6"/><path d="M9 12h6"/>
+    {%- elif name == "Health" %}<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>
+    {%- elif name == "Entertainment" %}<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14"/><path d="M17 5v14"/><path d="M3 12h4"/><path d="M17 12h4"/>
+    {%- elif name == "Shopping" %}<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>
+    {%- elif name == "wallet" %}<rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M16 15h2"/>
+    {%- elif name == "list" %}<path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4.5 6h.01"/><path d="M4.5 12h.01"/><path d="M4.5 18h.01"/>
+    {%- elif name == "star" %}<path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/>
+    {%- else %}<circle cx="6" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="18" cy="12" r="1"/>
+    {%- endif %}
+</svg>
+{%- endmacro %}
+
+<div class="profile-page">
+
+    <section class="profile-card account-card" aria-labelledby="profile-name">
+        <span class="profile-avatar" aria-hidden="true">{{ g.user['name'][:1]|upper }}</span>
+        <div class="account-details">
+            <p class="profile-eyebrow">Your profile</p>
+            <h1 class="profile-name" id="profile-name">{{ g.user['name'] }}</h1>
+            <p class="profile-email">{{ g.user['email'] }}</p>
+        </div>
+    </section>
+
+    <section class="profile-card" aria-labelledby="summary-title">
+        <div class="card-header">
+            <div>
+                <h2 class="card-title" id="summary-title">Spending summary</h2>
+                <p class="card-subtitle">{{ period_label }}</p>
+            </div>
+            <span class="sample-badge">Sample data</span>
+        </div>
+        <p class="sample-note">All amounts on this page are examples that preview the layout.
+            Your own spending will appear here in a later update.</p>
+        <dl class="stat-grid">
+            <div class="stat-tile stat-tile--featured">
+                <dt class="stat-label"><span class="stat-icon">{{ icon("wallet") }}</span>Total spent</dt>
+                <dd class="stat-value">{{ summary.total|inr }}</dd>
+                {% if category_totals %}
+                <dd class="stat-meta">Across {{ category_totals|length }} categories</dd>
+                {% endif %}
+            </div>
+            <div class="stat-tile">
+                <dt class="stat-label"><span class="stat-icon">{{ icon("list") }}</span>Expenses</dt>
+                <dd class="stat-value">{{ summary.count }}</dd>
+                {% if summary.count %}
+                <dd class="stat-meta">Avg {{ (summary.total / summary.count)|inr }} each</dd>
+                {% endif %}
+            </div>
+            <div class="stat-tile">
+                <dt class="stat-label"><span class="stat-icon">{{ icon("star") }}</span>Top category</dt>
+                {% if summary.top_category %}
+                <dd class="stat-value">{{ summary.top_category }}</dd>
+                <dd class="stat-note">{{ summary.top_amount|inr }}</dd>
+                {% if category_totals %}
+                <dd class="stat-meta">{{ category_totals[0].share }}% of total spending</dd>
+                {% endif %}
+                {% else %}
+                <dd class="stat-value">—</dd>
+                {% endif %}
+            </div>
+        </dl>
+    </section>
+
+    <div class="profile-columns">
+        <section class="profile-card" aria-labelledby="categories-title">
+            <div class="card-header">
+                <h2 class="card-title" id="categories-title">By category</h2>
+            </div>
+            {% if category_totals %}
+            {# Ranked by amount, so an ordered list. role="list" keeps list semantics in
+               Safari, which drops them under list-style: none. #}
+            <ol class="category-list" role="list">
+                {% for row in category_totals %}
+                <li class="category-row">
+                    <span class="category-icon">{{ icon(row.category) }}</span>
+                    <span class="category-name">{{ row.category }}</span>
+                    <span class="category-amount">{{ row.amount|inr }}</span>
+                    <span class="category-share">{{ row.share }}%</span>
+                    <span class="category-track" aria-hidden="true"><span class="category-bar" style="--share: {{ row.share }}%"></span></span>
+                </li>
+                {% endfor %}
+            </ol>
+            {% else %}
+            <p class="empty-note">No spending to show yet.</p>
+            {% endif %}
+        </section>
+
+        <section class="profile-card" aria-labelledby="recent-title">
+            <div class="card-header">
+                <h2 class="card-title" id="recent-title">Recent expenses</h2>
+            </div>
+            {% if recent_expenses %}
+            <table class="expense-table">
+                <caption class="visually-hidden">Your {{ recent_expenses|length }} most recent expenses (sample data)</caption>
+                <thead>
+                    <tr>
+                        <th scope="col" class="col-date">Date</th>
+                        <th scope="col">Description</th>
+                        <th scope="col" class="col-category">Category</th>
+                        <th scope="col" class="num">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in recent_expenses %}
+                    <tr>
+                        <td class="col-date"><time datetime="{{ expense.date }}">{{ expense.date|short_date }}</time></td>
+                        <td>
+                            <div class="expense-item">
+                                <span class="category-icon">{{ icon(expense.category) }}</span>
+                                <div class="expense-text">
+                                    <span class="expense-desc">{{ expense.description or "No description" }}</span>
+                                    {# Phones hide the Date and Category columns and show this line instead. #}
+                                    <span class="expense-meta">
+                                        <span class="category-pill">{{ expense.category }}</span>
+                                        <time datetime="{{ expense.date }}">{{ expense.date|short_date }}</time>
+                                    </span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="col-category"><span class="category-pill">{{ expense.category }}</span></td>
+                        <td class="num">{{ expense.amount|inr }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-note">No expenses yet.</p>
+            {% endif %}
+        </section>
+    </div>
+
+</div>
+{% endblock %}

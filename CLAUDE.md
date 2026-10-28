@@ -9,7 +9,8 @@ Spendly is a lightweight personal expense tracker built with Flask and SQLite.
 ## Architecture
 ```
 expense-tracker/            # repo root — github.com/maddyhammad/spendly
-├── app.py                  # All routes + auth helpers — single file, no blueprints
+├── app.py                  # All routes, auth helpers and template filters — single file, no blueprints
+├── sample_data.py          # Step 4 sample figures for /profile — deleted in Step 6
 ├── database/
 │   ├── __init__.py
 │   └── db.py               # SQLite helpers (see "Database" below)
@@ -19,17 +20,20 @@ expense-tracker/            # repo root — github.com/maddyhammad/spendly
 │   ├── register.html
 │   ├── login.html
 │   ├── terms.html
-│   └── privacy.html
+│   ├── privacy.html
+│   └── profile.html        # Login required; sample figures until Step 6
 ├── static/
 │   ├── css/
-│   │   ├── style.css       # Global styles
-│   │   └── landing.css     # Landing-page-only styles
+│   │   ├── style.css       # Global styles (+ .visually-hidden utility)
+│   │   ├── landing.css     # Landing-page-only styles
+│   │   └── profile.css     # Profile-page-only styles
 │   └── js/
 │       └── main.js         # Vanilla JS only (currently an empty placeholder)
 ├── tests/                  # pytest suite — every test gets its own temp DB
 │   ├── conftest.py
 │   ├── test_auth.py
 │   ├── test_db.py          # schema, constraints, migrations
+│   ├── test_profile.py     # /profile, nav link, sample data, template filters
 │   ├── test_routes.py
 │   └── test_seed.py
 ├── spendly.db              # The active SQLite database (gitignored)
@@ -41,6 +45,8 @@ expense-tracker/            # repo root — github.com/maddyhammad/spendly
 - DB logic → `database/db.py` only, never inline in routes
 - New pages → new `.html` file extending `base.html`
 - Page-specific styles → new `.css` file, not inline `<style>` tags
+- Sample / demo figures → `sample_data.py` only. Only `profile()` imports it; Step 6 replaces
+  `get_profile_sample()` with `db.py` queries returning the same keys and deletes the module
 - Tests → `tests/test_*.py`, using the `app` / `client` fixtures from `conftest.py`
 
 ---
@@ -54,6 +60,10 @@ expense-tracker/            # repo root — github.com/maddyhammad/spendly
 - Error handling: use `abort()` for HTTP errors, not bare `return "error string"`.
   Form validation errors are the exception: re-render the form with `error=...`
   and a 4xx status (see `register()` / `login()`).
+- Money and dates in templates: `{{ amount|inr }}` (Indian grouping, `₹2,48,500.00`) and
+  `{{ iso_date|short_date }}` (`26 Oct 2026`) — filters in `app.py`; never format them by hand.
+- A `style` attribute may only pass a data value as a custom property (e.g. `style="--share: 34%"`);
+  every rule still lives in a `.css` file.
 
 ---
 
@@ -149,7 +159,8 @@ pytest -s
 - Passwords are hashed with Werkzeug `generate_password_hash()` (scrypt) and checked with
   `check_password_hash()`. Never store or log plain-text passwords.
 - **Spec / plan:** `.claude/specs/02-registration.md`, `.claude/plans/02-registration.md`;
-  login/logout: `.claude/specs/03-login-and-logout.md`, `.claude/plans/03-login-and-logout.md`.
+  login/logout: `.claude/specs/03-login-and-logout.md`, `.claude/plans/03-login-and-logout.md`;
+  profile page: `.claude/specs/04-profile-page-design.md`, `.claude/plans/04-profile-page-design.md`.
 - Emails are normalised (`strip().lower()`) on both register and login. `users.email` is
   `UNIQUE` but case-sensitive (`BINARY` collation) — case-insensitive uniqueness is **not**
   enforced by the database, only by this normalisation, so anything else that inserts users
@@ -177,8 +188,16 @@ pytest -s
   `session.clear()` on an empty session still sends a delete-cookie header. Together with
   `SameSite=Lax` (no cookie on another site's POST) this stops other sites from signing users
   out. Don't turn logout back into a GET link or drop the `user_id` check.
-- Logged-in users hitting `/login` or `/register` are redirected to `/`. After login the user is
-  sent to `/` — change this to the profile page once Step 4 exists.
+- **Signed-in users go to `/profile`:** a successful login redirects there, and so does opening
+  `/login` or `/register` while signed in (before any form is checked). The landing page `/` stays
+  reachable for them (nav brand link).
+- **Protected routes** use `@login_required` (in `app.py`), placed *under* `@app.route`. It redirects
+  to `/login` when `g.user` is `None` — no flash (login only renders `success` ones), no `next`,
+  no session change, and a redirect rather than `abort(401)` because signing in is navigation.
+  `/profile` is the first protected route.
+- The logged-in nav's "Hi, {name}" is an `a.nav-profile` link to `/profile` with an initial
+  avatar (`aria-current="page"` on `/profile`). At ≤600px only the avatar shows; the name is
+  visually hidden, never `display: none` — it is the link's accessible name.
 - Accounts that must not log in store the marker `"!"` (`UNUSABLE_PASSWORD` in `db.py`) in
   `password_hash` — it never matches a password. John Doe (id 1, from the old seed) has it.
 - **Demo login:** `demo@spendly.com` / `demo123` (created by `seed_db()`). It is shorter than
@@ -186,7 +205,7 @@ pytest -s
 - `SECRET_KEY` comes from the `SECRET_KEY` environment variable. Without it a random key is
   generated per process, so everyone is logged out whenever the dev server restarts or reloads.
 - Session cookie: `HttpOnly` (Flask default) and `SameSite=Lax`. There are no CSRF tokens
-  yet — add them before building the expense forms (Steps 7–9). A per-session token will change
+  yet — add them before building the expense forms (Step 5). A per-session token will change
   the "session stores only `user_id` + `_flashes`" rule above, and every POST helper in
   `tests/test_auth.py` (`register`, `login`, `logout`) will need to send it.
 
@@ -198,17 +217,21 @@ pytest -s
 |---|---|
 | `GET /` | Implemented — renders `landing.html` |
 | `GET, POST /register` | Implemented — validates, creates user, flashes a welcome message, redirects to `/login` (no auto-login) |
-| `GET, POST /login` | Implemented — checks password hash, redirects to `/` |
+| `GET, POST /login` | Implemented — checks password hash, redirects to `/profile` (signed-in visitors are sent straight there) |
 | `POST /logout` | Implemented (Step 3) — POST only (GET → 405); clears the session only when it holds a `user_id`, flashes "You've been signed out.", redirects to `/login` |
 | `GET /terms` | Implemented — renders `terms.html` |
 | `GET /privacy` | Implemented — renders `privacy.html` |
-| `GET /profile` | Stub — Step 4 |
-| `GET /expenses/add` | Stub — Step 7 |
-| `GET /expenses/<int:id>/edit` | Stub — Step 8 |
-| `GET /expenses/<int:id>/delete` | Stub — Step 9 |
+| `GET /profile` | Implemented (Step 4) — login required; real name/email, sample financial figures from `sample_data.py` |
+| `GET /expenses/add` | Stub — Step 5 (stub text still says Step 7) |
+| `GET /expenses/<int:id>/edit` | Stub — Step 5 (stub text still says Step 8) |
+| `GET /expenses/<int:id>/delete` | Stub — Step 5 (stub text still says Step 9) |
 | `flask --app app init-db` | CLI — creates tables and applies migrations (no seeding) |
 
 **Do not implement a stub route unless the active task explicitly targets that step.**
+
+**Roadmap:** Step 5 — expense management (add / edit / delete on SQLite), with CSRF tokens first.
+Step 6 — dashboard data integration: real queries replace `sample_data.py`, plus designed empty
+states. (The stub strings and `test_stub_routes_unchanged` still use the old Step 7–9 numbers.)
 
 ---
 

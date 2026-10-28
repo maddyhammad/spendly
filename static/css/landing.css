@@ -525,7 +525,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 @media (max-width: 600px) {
-    .nav-links a:not(.nav-cta) { display: none; }
+    .nav-links a:not(.nav-cta, .nav-profile) { display: none; }
     .hero { padding: 3rem 1rem 2rem; }
 }
 

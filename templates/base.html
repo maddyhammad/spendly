@@ -19,7 +19,10 @@
             </a>
             <div class="nav-links">
                 {% if g.user %}
-                <span class="nav-user">Hi, {{ g.user['name'] }}</span>
+                <a href="{{ url_for('profile') }}" class="nav-profile"{% if request.endpoint == 'profile' %} aria-current="page"{% endif %}>
+                    <span class="nav-avatar" aria-hidden="true">{{ g.user['name'][:1]|upper }}</span>
+                    <span class="nav-user-text">Hi, {{ g.user['name'] }}</span>
+                </a>
                 <form method="POST" action="{{ url_for('logout') }}" class="nav-logout">
                     <button type="submit" class="nav-cta">Sign out</button>
                 </form>
