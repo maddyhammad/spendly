@@ -247,6 +247,6 @@ states. (The stub strings and `test_stub_routes_unchanged` still use the old Ste
   `PRAGMA foreign_keys = ON` on every connection, so always go through `get_db()`
 - **Never commit a venv or nested project copies** — a `Downloads/` duplicate (plus a venv)
   was once pulled in from a stray Git repo in the home folder and had to be removed
-- **`.claude/` is gitignored except `commands/`, `specs/` and `plans/`** — never commit
+- **`.claude/` is gitignored except `commands/`, `skills/`, `specs/` and `plans/`** — never commit
   `settings.local.json`, `launch.json` or other local Claude config
 - The app runs on **port 5001**, not the Flask default 5000 — don't change this

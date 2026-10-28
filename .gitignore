@@ -47,10 +47,11 @@ spendly.db
 .env.*
 !.env.example
 
-# Claude Code: share slash commands, specs and plans only. Everything else
+# Claude Code: share slash commands, skills, specs and plans only. Everything else
 # under .claude/ (settings.local.json, launch.json, ...) is local config.
 .claude/*
 !.claude/commands/
+!.claude/skills/
 !.claude/specs/
 !.claude/plans/
 CLAUDE.local.md
