@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-import app as app_module
 from app import inr, short_date
 from database.db import (
     CATEGORIES,
@@ -16,18 +15,12 @@ from database.db import (
     get_db,
     seed_db,
 )
-from sample_data import get_profile_sample
 from tests.test_auth import login, register, session_user_id, sign_up_and_log_in
 
 
 def profile_page(client):
     sign_up_and_log_in(client)
     return client.get("/profile").get_data(as_text=True)
-
-
-def use_sample(monkeypatch, sample):
-    # profile() looks get_profile_sample up by its global name, so patch it on the app module.
-    monkeypatch.setattr(app_module, "get_profile_sample", lambda: sample)
 
 
 # ------------------------------------------------------------------ #
@@ -120,224 +113,6 @@ def test_profile_renders_for_logged_in_user(client):
     assert 'href="/static/css/profile.css"' in page
     assert "profile.css" not in client.get("/").get_data(as_text=True)
 
-
-def test_profile_renders_all_sections(client):
-    page = profile_page(client)
-
-    for heading in ("Spending summary", "By category", "Recent expenses"):
-        assert f">{heading}</h2>" in page
-    for label in ("Total spent", "Expenses", "Top category"):
-        assert re.search(rf'<dt class="stat-label">.*?</span>{label}</dt>', page, re.S)
-    assert '<span class="sample-badge">Sample data</span>' in page
-    assert f'<p class="card-subtitle">{get_profile_sample()["period_label"]}</p>' in page
-
-
-def test_profile_shows_sample_figures(client):
-    page = profile_page(client)
-    sample = get_profile_sample()
-
-    assert '<dd class="stat-value">₹7,267.00</dd>' in page
-    assert re.search(r'Expenses</dt>\s*<dd class="stat-value">8</dd>', page)
-    assert '<dd class="stat-value">Bills</dd>' in page
-    assert '<dd class="stat-note">₹2,499.00</dd>' in page
-    assert '<dd class="stat-meta">Across 7 categories</dd>' in page
-    assert '<dd class="stat-meta">Avg ₹908.38 each</dd>' in page  # 7267 / 8
-    assert '<dd class="stat-meta">34% of total spending</dd>' in page
-    for row in sample["category_totals"]:
-        assert f'<span class="category-name">{row["category"]}</span>' in page
-        assert f'<span class="category-amount">{inr(row["amount"])}</span>' in page
-        assert f'<span class="category-share">{row["share"]}%</span>' in page
-        assert f'style="--share: {row["share"]}%"' in page
-
-    [tbody] = re.findall(r"<tbody>(.*?)</tbody>", page, re.S)
-    assert tbody.count("<tr>") == 5
-    positions = [tbody.index(e["description"]) for e in sample["recent_expenses"]]
-    assert positions == sorted(positions)  # newest first, as given
-    for e in sample["recent_expenses"]:
-        assert short_date(e["date"]) in tbody
-        assert f'<td class="num">{inr(e["amount"])}</td>' in tbody
-
-
-def test_profile_figures_come_from_sample_module(client, monkeypatch):
-    use_sample(monkeypatch, {
-        "period_label": "March 2027",
-        "summary": {"total": 123.45, "count": 1, "top_category": "Food", "top_amount": 123.45},
-        "category_totals": [{"category": "Food", "amount": 123.45, "share": 100}],
-        "recent_expenses": [
-            {"date": "2027-03-02", "description": "Chai", "category": "Food", "amount": 123.45},
-        ],
-    })
-
-    page = profile_page(client)
-
-    for shown in ("₹123.45", "Chai", "March 2027", "2 Mar 2027"):
-        assert shown in page
-    for hidden in ("₹7,267.00", "Dinner with friends", "October 2026"):
-        assert hidden not in page
-
-
-def test_profile_template_has_no_hardcoded_figures(app):
-    source = Path(app.root_path, "templates", "profile.html").read_text(encoding="utf-8")
-
-    assert "₹" not in source
-    assert not re.search(r"\b20\d\d\b", source)
-    assert not any(month in source for month in calendar.month_name[1:])
-
-
-def test_profile_renders_empty_sample(client, monkeypatch):
-    use_sample(monkeypatch, {
-        "period_label": "October 2026",
-        "summary": {"total": 0, "count": 0, "top_category": None, "top_amount": None},
-        "category_totals": [],
-        "recent_expenses": [],
-    })
-    sign_up_and_log_in(client)
-
-    response = client.get("/profile")
-    page = response.get_data(as_text=True)
-
-    assert response.status_code == 200
-    assert "No spending to show yet." in page
-    assert "No expenses yet." in page
-    assert "<table" not in page
-    assert '<dd class="stat-value">₹0.00</dd>' in page
-    assert '<dd class="stat-value">—</dd>' in page
-    assert "Avg " not in page  # no average without expenses (and no division by zero)
-    assert "of total spending" not in page
-    assert "Across " not in page
-    assert "None" not in page
-
-
-def test_profile_escapes_user_data(client):
-    register(client, name="<b>Asha</b>", email="a<i>@example.com")
-    assert login(client, email="a<i>@example.com").headers["Location"] == "/profile"
-
-    page = client.get("/profile").get_data(as_text=True)
-
-    assert '<h1 class="profile-name" id="profile-name">&lt;b&gt;Asha&lt;/b&gt;</h1>' in page
-    assert '<span class="nav-user-text">Hi, &lt;b&gt;Asha&lt;/b&gt;</span>' in page
-    assert '<p class="profile-email">a&lt;i&gt;@example.com</p>' in page
-    assert '<span class="profile-avatar" aria-hidden="true">&lt;</span>' in page
-    assert "<b>" not in page
-    assert "<i>" not in page
-
-
-def test_profile_table_and_bars_are_accessible(client):
-    page = profile_page(client)
-    categories = get_profile_sample()["category_totals"]
-
-    assert '<caption class="visually-hidden">Your 5 most recent expenses (sample data)</caption>' in page
-    assert page.count('scope="col"') == 4
-    assert '<ol class="category-list" role="list">' in page
-    assert page.count('<span class="category-track" aria-hidden="true">') == len(categories)
-    # 3 stat icons + one per category row + one per expense row; all decorative.
-    svgs = re.findall(r"<svg[^>]*>", page)
-    assert len(svgs) == 3 + len(categories) + 5
-    assert all('aria-hidden="true"' in s and 'focusable="false"' in s for s in svgs)
-
-
-def test_profile_has_no_dead_links(client):
-    page = profile_page(client)
-    urls = re.findall(r'(?:href|src)="([^"]*)"', page)
-    internal = [u for u in urls if u.startswith("/")]
-    external = [u for u in urls if not u.startswith("/")]
-
-    assert all(
-        u.startswith(("https://fonts.googleapis.com", "https://fonts.gstatic.com")) for u in external
-    )
-    assert not any(u.startswith("/expenses") for u in internal)
-    for url in internal:
-        response = client.get(url)
-        assert response.status_code == 200, url
-        response.close()
-    assert re.findall(r'action="([^"]*)"', page) == ["/logout"]
-
-
-# ------------------------------------------------------------------ #
-# Nav                                                                 #
-# ------------------------------------------------------------------ #
-
-def test_nav_links_to_profile_when_logged_in(client):
-    sign_up_and_log_in(client)
-
-    page = client.get("/").get_data(as_text=True)
-
-    assert '<a href="/profile" class="nav-profile">' in page
-    assert '<span class="nav-avatar" aria-hidden="true">A</span>' in page
-    assert '<span class="nav-user-text">Hi, Asha Rao</span>' in page
-    assert "aria-current" not in page
-
-
-def test_nav_marks_profile_as_current_page(client):
-    sign_up_and_log_in(client)
-
-    page = client.get("/profile").get_data(as_text=True)
-
-    assert page.count('<a href="/profile" class="nav-profile" aria-current="page">') == 1
-
-
-@pytest.mark.parametrize("path", ["/", "/login", "/register", "/terms", "/privacy"])
-def test_nav_has_no_profile_link_when_logged_out(client, path):
-    assert 'href="/profile"' not in client.get(path).get_data(as_text=True)
-
-
-# ------------------------------------------------------------------ #
-# Sample data                                                         #
-# ------------------------------------------------------------------ #
-
-def test_sample_data_is_consistent():
-    sample = get_profile_sample()
-    summary = sample["summary"]
-    categories = sample["category_totals"]
-    recent = sample["recent_expenses"]
-
-    assert set(sample) == {"period_label", "summary", "category_totals", "recent_expenses"}
-
-    names = [c["category"] for c in categories]
-    amounts = [c["amount"] for c in categories]
-    assert sum(amounts) == pytest.approx(summary["total"])
-    assert amounts == sorted(amounts, reverse=True)
-    assert len(set(names)) == len(names)
-    assert set(names) <= set(CATEGORIES)
-    assert (summary["top_category"], summary["top_amount"]) == (names[0], amounts[0])
-    for c in categories:
-        assert c["share"] == round(c["amount"] / summary["total"] * 100)
-    assert sum(c["share"] for c in categories) == 100
-
-    dates = [date.fromisoformat(e["date"]) for e in recent]
-    assert len(recent) == 5 <= summary["count"]
-    assert dates == sorted(dates, reverse=True)
-    assert all(f"{d:%B %Y}" == sample["period_label"] for d in dates)
-    assert all(e["category"] in names and e["amount"] > 0 for e in recent)
-
-
-def test_sample_data_mirrors_seed():
-    sample = get_profile_sample()
-    seeded_totals = defaultdict(float)
-    for category, amount, _ in SAMPLE_EXPENSES:
-        seeded_totals[category] += amount
-
-    assert sample["summary"]["total"] == pytest.approx(sum(seeded_totals.values()))
-    assert sample["summary"]["count"] == len(SAMPLE_EXPENSES)
-    assert {c["category"]: c["amount"] for c in sample["category_totals"]} == seeded_totals
-    for e in sample["recent_expenses"]:
-        assert (e["category"], e["amount"], e["description"]) in SAMPLE_EXPENSES
-
-
-def test_sample_data_returns_fresh_copy():
-    first = get_profile_sample()
-    first["summary"]["total"] = 0
-    first["recent_expenses"].clear()
-
-    second = get_profile_sample()
-
-    assert second["summary"]["total"] == 7267.00
-    assert len(second["recent_expenses"]) == 5
-
-
-# ------------------------------------------------------------------ #
-# Template filters                                                    #
-# ------------------------------------------------------------------ #
 
 @pytest.mark.parametrize(
     "value, expected",

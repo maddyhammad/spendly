@@ -384,6 +384,10 @@
 
 /* Shown only on phones, where it replaces the Date and Category columns. */
 .expense-meta { display: none; }
+.expense-table-scroll { overflow-x: auto; }
+.expense-actions { white-space: nowrap; }
+.expense-actions a { display: inline-block; padding: 0.35rem; color: var(--accent); text-decoration: underline; }
+.expense-actions a:last-child { color: var(--danger); }
 
 /* ------------------------------------------------------------------ */
 /* Entrance and hover — subtle, and only where they make sense         */

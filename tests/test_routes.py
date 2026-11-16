@@ -27,7 +27,7 @@ def test_auth_forms_post_to_their_own_routes(client):
         ("/expenses/1/delete", "Step 9"),
     ],
 )
-def test_stub_routes_unchanged(client, path, step):
+def test_expense_routes_require_login(client, path, step):
     response = client.get(path)
-    assert response.status_code == 200
-    assert step in response.get_data(as_text=True)
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/login"

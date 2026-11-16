@@ -95,6 +95,33 @@ def get_db():
     return g.db
 
 
+def get_profile_data(user_id):
+    """Current month's totals and complete history, scoped to the signed-in user."""
+    today = date.today()
+    month_start = today.replace(day=1).isoformat()
+    db = get_db()
+    rows = db.execute(
+        "SELECT category, ROUND(SUM(amount), 2) AS amount, COUNT(*) AS count "
+        "FROM expenses WHERE user_id=? AND date>=? AND date<=? "
+        "GROUP BY category ORDER BY amount DESC, category",
+        (user_id, month_start, today.isoformat()),
+    ).fetchall()
+    total = round(sum(row["amount"] for row in rows), 2)
+    categories = [dict(row, share=round(row["amount"] / total * 100) if total else 0) for row in rows]
+    history = db.execute(
+        "SELECT id, amount, category, date, description FROM expenses "
+        "WHERE user_id=? ORDER BY date DESC, id DESC", (user_id,)
+    ).fetchall()
+    return {
+        "period_label": today.strftime("%B %Y"),
+        "summary": {"total": total, "count": sum(row["count"] for row in rows),
+                    "top_category": rows[0]["category"] if rows else None,
+                    "top_amount": rows[0]["amount"] if rows else 0},
+        "category_totals": categories,
+        "recent_expenses": history,
+    }
+
+
 def close_db(e=None):
     """Close the connection opened by :func:`get_db`, if any.
 
