@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Delete expense — Spendly{% endblock %}
+{% block content %}
+<section class="auth-section"><div class="auth-container">
+    <div class="auth-header"><h1 class="auth-title">Delete expense?</h1>
+        <p class="auth-subtitle">This permanently removes this expense.</p></div>
+    <div class="auth-card">
+        <p>{{ expense.description or 'No description' }}</p>
+        <p>{{ expense.category }} · {{ expense.date|short_date }} · {{ expense.amount|inr }}</p>
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ expense_token() }}">
+            <button class="btn-submit" type="submit">Delete expense</button>
+        </form>
+    </div>
+    <p class="auth-switch"><a href="{{ url_for('profile') }}">Cancel and keep expense</a></p>
+</div></section>
+{% endblock %}

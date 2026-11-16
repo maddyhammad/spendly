@@ -25,6 +25,10 @@
 {%- endmacro %}
 
 <div class="profile-page">
+    {% for message in get_flashed_messages(category_filter=['expense']) %}
+    <p class="profile-card" role="status">{{ message }}</p>
+    {% endfor %}
+    <p><a href="{{ url_for('add_expense') }}" class="nav-cta">Add expense</a></p>
 
     <section class="profile-card account-card" aria-labelledby="profile-name">
         <span class="profile-avatar" aria-hidden="true">{{ g.user['name'][:1]|upper }}</span>
@@ -41,10 +45,7 @@
                 <h2 class="card-title" id="summary-title">Spending summary</h2>
                 <p class="card-subtitle">{{ period_label }}</p>
             </div>
-            <span class="sample-badge">Sample data</span>
         </div>
-        <p class="sample-note">All amounts on this page are examples that preview the layout.
-            Your own spending will appear here in a later update.</p>
         <dl class="stat-grid">
             <div class="stat-tile stat-tile--featured">
                 <dt class="stat-label"><span class="stat-icon">{{ icon("wallet") }}</span>Total spent</dt>
@@ -101,17 +102,19 @@
 
         <section class="profile-card" aria-labelledby="recent-title">
             <div class="card-header">
-                <h2 class="card-title" id="recent-title">Recent expenses</h2>
+                <h2 class="card-title" id="recent-title">Expense history</h2>
             </div>
             {% if recent_expenses %}
+            <div class="expense-table-scroll" tabindex="0" role="region" aria-label="Expense history">
             <table class="expense-table">
-                <caption class="visually-hidden">Your {{ recent_expenses|length }} most recent expenses (sample data)</caption>
+                <caption class="visually-hidden">Your expenses, newest first (all dates)</caption>
                 <thead>
                     <tr>
                         <th scope="col" class="col-date">Date</th>
                         <th scope="col">Description</th>
                         <th scope="col" class="col-category">Category</th>
                         <th scope="col" class="num">Amount</th>
+                        <th scope="col">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -133,10 +136,13 @@
                         </td>
                         <td class="col-category"><span class="category-pill">{{ expense.category }}</span></td>
                         <td class="num">{{ expense.amount|inr }}</td>
+                        <td class="expense-actions"><a href="{{ url_for('edit_expense', id=expense.id) }}" aria-label="Edit expense: {{ expense.description or expense.category }}">Edit</a>
+                            <a href="{{ url_for('delete_expense', id=expense.id) }}" aria-label="Delete expense: {{ expense.description or expense.category }}">Delete</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
             {% else %}
             <p class="empty-note">No expenses yet.</p>
             {% endif %}
